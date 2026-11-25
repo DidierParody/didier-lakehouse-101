@@ -1,0 +1,52 @@
+name: terraform-plan
+
+# Every PR into dev or main gets a plan against that branch's environment,
+# posted as a PR comment. PR into main = prod plan, PR into dev = dev plan.
+on:
+  pull_request:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+  id-token: write      # OIDC login to AWS
+  pull-requests: write # post the plan as a PR comment
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    env:
+      ENV: ${{ github.base_ref == 'main' && 'prod' || 'dev' }}
+    defaults:
+      run:
+        working-directory: infrastructure/terraform
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::009377924228:role/didier-lakehouse-github-actions
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.12.2
+          terraform_wrapper: false
+
+      - run: terraform fmt -check -recursive
+      - run: terraform init -input=false -backend-config=environments/$ENV/backend.hcl
+      - run: terraform validate
+      # -lock=false: plan never writes state, and a cancelled run must not leave a stale lock that blocks apply
+      - run: terraform plan -input=false -no-color -lock=false -var-file=environments/$ENV/terraform.tfvars -out=tfplan
+
+      - name: Comment plan on PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo "### Terraform plan for \`$ENV\`"
+            echo '```'
+            terraform show -no-color tfplan | tail -c 60000 # PR comments are capped at 65536 chars
+            echo '```'
+          } > plan.md
+          gh pr comment "$PR" --body-file plan.md --edit-last --create-if-none
