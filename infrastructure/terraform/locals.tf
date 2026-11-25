@@ -17,7 +17,7 @@ locals {
   # Folder prefixes to create inside each bucket
   bucket_folders = {
     scripts   = ["glue/jobs/", "athena/queries/"]
-    lakehouse = ["landing/", "bronze/", "silver/", "gold/"]
+    lakehouse = ["landing/", "bronze/", "silver/", "gold/", "athena-results/"]
   }
 
   bucket_arns = { for k, name in local.bucket_names : k => "arn:aws:s3:::${name}" }
