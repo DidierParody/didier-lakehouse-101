@@ -71,6 +71,20 @@ resource "aws_s3_bucket_lifecycle_configuration" "lakehouse" {
     }
   }
 
+  # Athena writes a result file per query and never cleans up
+  rule {
+    id     = "expire-athena-results"
+    status = "Enabled"
+
+    filter {
+      prefix = "athena-results/"
+    }
+
+    expiration {
+      days = 7
+    }
+  }
+
   dynamic "rule" {
     for_each = {
       landing = { days = 30, storage_class = "GLACIER" }

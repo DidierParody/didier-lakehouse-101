@@ -76,3 +76,35 @@ module "s3" {
   bucket_folders = local.bucket_folders
   tags           = local.tags
 }
+
+module "glue" {
+  source = "./modules/glue"
+
+  environment      = var.environment
+  role_arn         = aws_iam_role.glue_role.arn
+  scripts_bucket   = module.s3.bucket_names.scripts
+  lakehouse_bucket = module.s3.bucket_names.lakehouse
+  tags             = local.tags
+}
+
+resource "aws_athena_workgroup" "lakehouse" {
+  name          = "lakehouse-${var.environment}"
+  state         = "ENABLED"
+  force_destroy = true # destroy even when saved queries exist
+
+  configuration {
+    enforce_workgroup_configuration    = true
+    publish_cloudwatch_metrics_enabled = true
+    bytes_scanned_cutoff_per_query     = 1073741824 # 1 GiB per query
+
+    result_configuration {
+      output_location = "s3://${module.s3.bucket_names.lakehouse}/athena-results/"
+
+      encryption_configuration {
+        encryption_option = "SSE_S3"
+      }
+    }
+  }
+
+  tags = local.tags
+}
