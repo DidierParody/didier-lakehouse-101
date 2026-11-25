@@ -59,6 +59,18 @@ resource "aws_iam_policy" "glue_s3_access" {
   tags = local.tags
 }
 
+resource "aws_iam_policy" "glue_secrets_access" {
+  name   = "glue-secrets-access-${var.environment}"
+  policy = data.aws_iam_policy_document.glue_secrets_access.json
+
+  tags = local.tags
+}
+
+resource "aws_iam_role_policy_attachment" "glue_secrets_access" {
+  role       = aws_iam_role.glue_role.name
+  policy_arn = aws_iam_policy.glue_secrets_access.arn
+}
+
 resource "aws_iam_role_policy_attachment" "glue_service_role" {
   role       = aws_iam_role.glue_role.name
   policy_arn = data.aws_iam_policy.glue_service_role.arn
@@ -121,4 +133,43 @@ resource "aws_secretsmanager_secret_version" "neon_db" {
   # "{}" only lets PR plans (no secret) pass; CI apply always sends the real value
   secret_string_wo         = coalesce(var.neon_db_credentials, "{}")
   secret_string_wo_version = 1 # bump to push a changed NEON_DB_CREDENTIALS
+}
+
+resource "aws_secretsmanager_secret" "gcp_service_account" {
+  name        = "didier-lakehouse/${var.environment}/gcp-service-account"
+  description = "Google Cloud service account key for the ${var.environment} lakehouse"
+
+  tags = local.tags
+}
+
+resource "aws_secretsmanager_secret_version" "gcp_service_account" {
+  secret_id = aws_secretsmanager_secret.gcp_service_account.id
+  # "{}" only lets PR plans (no secret) pass; CI apply always sends the real value
+  secret_string_wo         = coalesce(var.gcp_service_account_key, "{}")
+  secret_string_wo_version = 1 # bump to push a changed GCP_SERVICE_ACCOUNT_KEY
+}
+
+resource "aws_iam_role" "lambda_role" {
+  name               = "lambda-role-${var.environment}"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+
+  tags = local.tags
+}
+
+resource "aws_iam_policy" "lambda_secrets_access" {
+  name   = "lambda-secrets-access-${var.environment}"
+  policy = data.aws_iam_policy_document.lambda_secrets_access.json
+
+  tags = local.tags
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_secrets_access" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_secrets_access.arn
+}
+
+# CloudWatch Logs, so the function can write its logs
+resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }

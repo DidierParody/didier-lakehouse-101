@@ -38,11 +38,36 @@ data "aws_iam_policy_document" "glue_s3_access" {
     actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
     resources = ["${local.bucket_arns.lakehouse}/*"]
   }
+}
 
+# Read the Neon and Google Cloud credentials from Secrets Manager
+data "aws_iam_policy_document" "glue_secrets_access" {
   statement {
-    sid       = "ReadNeonSecret"
+    sid       = "ReadProjectSecrets"
     effect    = "Allow"
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.neon_db.arn]
+    resources = [aws_secretsmanager_secret.neon_db.arn, aws_secretsmanager_secret.gcp_service_account.arn]
+  }
+}
+
+# Trust policy: only the AWS Lambda service can assume the role
+data "aws_iam_policy_document" "lambda_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+# Lambda read access to the project secrets
+data "aws_iam_policy_document" "lambda_secrets_access" {
+  statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+    resources = [aws_secretsmanager_secret.neon_db.arn, aws_secretsmanager_secret.gcp_service_account.arn]
   }
 }

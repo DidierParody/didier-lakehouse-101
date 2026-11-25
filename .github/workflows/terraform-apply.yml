@@ -40,4 +40,5 @@ jobs:
       - run: terraform init -input=false -backend-config=environments/$ENV/backend.hcl
       - run: terraform apply -input=false -auto-approve -var-file=environments/$ENV/terraform.tfvars
         env:
-          TF_VAR_neon_db_credentials: ${{ secrets.NEON_DB_CREDENTIALS }} # GitHub environment secret
+          TF_VAR_neon_db_credentials: ${{ secrets.NEON_DB_CREDENTIALS }} # GitHub environment secrets
+          TF_VAR_gcp_service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
