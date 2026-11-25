@@ -38,4 +38,11 @@ data "aws_iam_policy_document" "glue_s3_access" {
     actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
     resources = ["${local.bucket_arns.lakehouse}/*"]
   }
+
+  statement {
+    sid       = "ReadNeonSecret"
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.neon_db.arn]
+  }
 }
