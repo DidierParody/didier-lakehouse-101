@@ -108,3 +108,17 @@ resource "aws_athena_workgroup" "lakehouse" {
 
   tags = local.tags
 }
+
+resource "aws_secretsmanager_secret" "neon_db" {
+  name        = "didier-lakehouse/${var.environment}/neon-db"
+  description = "Neon Postgres credentials for the ${var.environment} lakehouse"
+
+  tags = local.tags
+}
+
+resource "aws_secretsmanager_secret_version" "neon_db" {
+  secret_id = aws_secretsmanager_secret.neon_db.id
+  # "{}" only lets PR plans (no secret) pass; CI apply always sends the real value
+  secret_string_wo         = coalesce(var.neon_db_credentials, "{}")
+  secret_string_wo_version = 1 # bump to push a changed NEON_DB_CREDENTIALS
+}
